@@ -249,7 +249,8 @@ CLASS ltd_workflow IMPLEMENTATION.
 
     GET TIME STAMP FIELD lv_ts.
 
-    lo_xml->add( |<workflow_exchange xmlns="http://www.sap.com/bc/bmt/wfm/def" type="internal" release="752" version="1.0" xml:lang="EN">| ).
+    lo_xml->add( |<workflow_exchange xmlns="http://www.sap.com/bc/bmt/wfm/def" type="internal" release="752" | &&
+                 |version="1.0" xml:lang="EN">| ).
     lo_xml->add( | <workflow id="{ mv_wfid }(0000)S">| ).
     lo_xml->add( |  <task>| ).
     lo_xml->add( |   <TASK>{ mv_wfid }</TASK>| ).
@@ -302,22 +303,45 @@ CLASS ltd_workflow IMPLEMENTATION.
     lo_xml->add( |     <INTERNAL>X</INTERNAL>| ).
     lo_xml->add( |    </PROPERTIES>| ).
     lo_xml->add( |    <ELEMENTS>| ).
-    lo_xml->add( |     <A NAME="_ADHOC_OBJECTS:_Adhoc_Objects:" TYPE=":BO::h:0:0" PROPS="0C925A51" LTEXTS="EE014Ad Hoc ObjectsAd Hoc Objects of Workflow Instance" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
-    lo_xml->add( |     <B NAME="_ATTACH_OBJECTS:_Attach_Objects:" TYPE="SOFM:BO::h:0:0" PROPS="0C925A51" LTEXTS="EE011AttachmentsAttachments of Workflow Instance" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
-    lo_xml->add( |     <C NAME="_WF_INITIATOR:_Wf_Initiator:" TYPE="::WFSYST-INITIATOR:C:0:0" PROPS="0C003211" LTEXTS="EE018Workflow InitiatorInitiator of Workflow Instance" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
-    lo_xml->add( |     <D NAME="_WF_PRIORITY:_Wf_Priority:" TYPE="::SWFCN_TYPE_PRIORITY:N:0:0" PROPS="0C001A1" LTEXTS="EE008PriorityPriority of Workflow Instance" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:">5</D>| ).
-    lo_xml->add( |     <E NAME="_WI_GROUP_ID:_Wi_Group_ID:" TYPE=":BO::u:0:0" PROPS="0C921A11" LTEXTS="EE017Grouping Charact.Grouping Characteristic for Workflow Instances" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
-    lo_xml->add( |     <F NAME="_WORKITEM:_Workitem:" TYPE="FLOWITEM:BO::u:0:0" PROPS="0C921A11" LTEXTS="EE008WorkflowWorkflow Instance" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
-    lo_xml->add( |     <G NAME="_WF_VERSION:_Wf_Version:" TYPE="::SWD_VERSIO:C:0:0" PROPS="0C000A11" LTEXTS="EE016Workflow VersionDefinition Version of this Workflow Instance" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
-    lo_xml->add( |     <H NAME="_WF_NESTING_LEVEL:_WF_Nesting_Level:" TYPE="::SYINDEX:I:0:0" PROPS="0C001A31" LTEXTS="EE013Nesting DepthCurrent Subworkflow Nesting Depth" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
-    lo_xml->add( |     <I NAME="_PREDECESSOR_WI:_Predecessor_Wi:" TYPE="WORKITEM:BO::u:0:0" PROPS="0C920011" LTEXTS="EE011PredecessorPrevious Work Item" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
-    lo_xml->add( |     <J NAME="_RFC_DESTINATION:_Rfc_Destination:" TYPE="::RFCDEST:C:0:0" PROPS="0C001231" LTEXTS="EE015RFC DestinationRFC Destination" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
-    lo_xml->add( |     <K NAME="_ATTACH_COMMENT_OBJECTS:_Attach_Comment_Objects:" TYPE="SOFM:BO::h:0:0" PROPS="0C925A71" LTEXTS="EE007CommentComment" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
-    lo_xml->add( |     <L NAME="_START_EVENT_IDENTIFIER:_Start_Event_Identifier:" TYPE="CL_SWF_UTL_EVT_IDENTIFIER:CL::h:0:0" PROPS="0CC20231" LTEXTS="EE017ID of Start EventID of Start Event" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
-    lo_xml->add(
-|     <M NAME="_WF_TYPENAME_MAPPING:_WF_Typename_Mapping:" TYPE="::SWF_CNT_MAPPING_TAB:h:0:0" PROPS="0C120271" LTEXTS="EE022Relation of Type NamesRelation of Type Names (Original and Copy)" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
-    lo_xml->add( |     <N NAME="_WF_START_QUERY:_WF_Start_Query:" TYPE="::SWF_STRING:g:0:0" PROPS="0C001231" LTEXTS="EE011Start QueryWorkflow Start Query in URL Syntax" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
-    lo_xml->add( |     <O NAME="_WF_LAST_CALLBACK_WI:_WF_Last_Callback_Wi:" TYPE="WORKITEM:BO::u:0:0" PROPS="0C920031" LTEXTS="EE018Callback Work ItemCallback Work Item" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <A NAME="_ADHOC_OBJECTS:_Adhoc_Objects:" TYPE=":BO::h:0:0" PROPS="0C925A51" LTEXTS="EE014| &&
+      |Ad Hoc ObjectsAd Hoc Objects of Workflow Instance" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <B NAME="_ATTACH_OBJECTS:_Attach_Objects:" TYPE="SOFM:BO::h:0:0" PROPS="0C925A51" | &&
+      |LTEXTS="EE011AttachmentsAttachments of Workflow Instance" CHGDTA="752:{ lv_ts }:| &&
+      |DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <C NAME="_WF_INITIATOR:_Wf_Initiator:" TYPE="::WFSYST-INITIATOR:C:0:0" PROPS="0C003211" | &&
+      |LTEXTS="EE018Workflow InitiatorInitiator of Workflow Instance" | &&
+      |CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <D NAME="_WF_PRIORITY:_Wf_Priority:" TYPE="::SWFCN_TYPE_PRIORITY:N:0:0" PROPS="0C001A1" | &&
+      |LTEXTS="EE008PriorityPriority of Workflow Instance" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:">5</D>| ).
+    lo_xml->add( |     <E NAME="_WI_GROUP_ID:_Wi_Group_ID:" TYPE=":BO::u:0:0" PROPS="0C921A11" LTEXTS="| &&
+      |EE017Grouping Charact.Grouping Characteristic for Workflow Instances" CHGDTA="752:{ lv_ts }:| &&
+      |DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <F NAME="_WORKITEM:_Workitem:" TYPE="FLOWITEM:BO::u:0:0" PROPS="0C921A11" LTEXTS="EE008| &&
+      |WorkflowWorkflow Instance" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <G NAME="_WF_VERSION:_Wf_Version:" TYPE="::SWD_VERSIO:C:0:0" PROPS="0C000A11" LTEXTS="EE016| &&
+      |Workflow VersionDefinition Version of this Workflow Instance" CHGDTA="752:{ lv_ts }:| &&
+      |DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <H NAME="_WF_NESTING_LEVEL:_WF_Nesting_Level:" TYPE="::SYINDEX:I:0:0" PROPS="0C001A31" | &&
+      |LTEXTS="EE013Nesting DepthCurrent Subworkflow Nesting Depth" CHGDTA="752:{ lv_ts }:| &&
+      |DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <I NAME="_PREDECESSOR_WI:_Predecessor_Wi:" TYPE="WORKITEM:BO::u:0:0" PROPS="0C920011" | &&
+      |LTEXTS="EE011PredecessorPrevious Work Item" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <J NAME="_RFC_DESTINATION:_Rfc_Destination:" TYPE="::RFCDEST:C:0:0" PROPS="0C001231" | &&
+      |LTEXTS="EE015RFC DestinationRFC Destination" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <K NAME="_ATTACH_COMMENT_OBJECTS:_Attach_Comment_Objects:" TYPE="SOFM:BO::h:0:0" | &&
+      |PROPS="0C925A71" LTEXTS="EE007CommentComment" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <L NAME="_START_EVENT_IDENTIFIER:_Start_Event_Identifier:" TYPE="CL_SWF_UTL_EVT_IDENTIFIER:| &&
+      |CL::h:0:0" PROPS="0CC20231" LTEXTS="EE017ID of Start EventID of Start Event" CHGDTA="752:{ lv_ts }:| &&
+      |DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <M NAME="_WF_TYPENAME_MAPPING:_WF_Typename_Mapping:" TYPE="::SWF_CNT_MAPPING_TAB:h:0:0" | &&
+      |PROPS="0C120271" LTEXTS="EE022Relation of Type NamesRelation of Type Names (Original and Copy)" | &&
+      |CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <N NAME="_WF_START_QUERY:_WF_Start_Query:" TYPE="::SWF_STRING:g:0:0" PROPS="0C001231" | &&
+      |LTEXTS="EE011Start QueryWorkflow Start Query in URL Syntax" CHGDTA="752:{ lv_ts }:| &&
+      |DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <O NAME="_WF_LAST_CALLBACK_WI:_WF_Last_Callback_Wi:" TYPE="WORKITEM:BO::u:0:0" | &&
+      |PROPS="0C920031" LTEXTS="EE018Callback Work ItemCallback Work Item" CHGDTA="752:{ lv_ts }:| &&
+      |DEVELOPER::00000000000000:"/>| ).
     lo_xml->add( |    </ELEMENTS>| ).
     lo_xml->add( |   </CONTAINER>| ).
     lo_xml->add( |  </workflow_container>| ).
