@@ -8,8 +8,8 @@ CLASS ltc_local_tests DEFINITION FINAL
   PROTECTED SECTION.
   PRIVATE SECTION.
 
-    CLASS-DATA mv_taskid TYPE hrobjid.
-    CLASS-DATA mv_changed_by TYPE usrname.
+    CLASS-DATA gv_taskid TYPE hrobjid.
+    CLASS-DATA gv_changed_by TYPE usrname.
 
     DATA mo_cut TYPE REF TO zif_abapgit_object.
 
@@ -25,7 +25,7 @@ ENDCLASS.
 CLASS ltc_local_tests IMPLEMENTATION.
 
   METHOD class_setup.
-    mv_taskid = get_any_workflow( ).
+    gv_taskid = get_any_workflow( ).
   ENDMETHOD.
 
   METHOD setup.
@@ -33,7 +33,7 @@ CLASS ltc_local_tests IMPLEMENTATION.
     DATA ls_item TYPE zif_abapgit_definitions=>ty_item.
 
     ls_item-obj_type = 'PDWS'.
-    ls_item-obj_name = 'TS' && mv_taskid.
+    ls_item-obj_name = 'WS' && gv_taskid.
 
     TRY.
         CREATE OBJECT mo_cut TYPE zcl_abapgit_object_pdws
@@ -54,20 +54,20 @@ CLASS ltc_local_tests IMPLEMENTATION.
           END OF ls_objdata.
 
     SELECT SINGLE objid uname
-           FROM hrs1000
+           FROM hrs1205
            INTO ls_objdata
            WHERE otype = 'WS' ##WARN_OK. "#EC CI_NOORDER #EC CI_SGLSELECT
 
     cl_abap_unit_assert=>assert_subrc( exp = 0
                                        act = sy-subrc ).
-    mv_changed_by = ls_objdata-uname.
+    gv_changed_by = ls_objdata-uname.
     rv_result = ls_objdata-objid.
 
   ENDMETHOD.
 
   METHOD validate_created_by.
     cl_abap_unit_assert=>assert_equals( act = mo_cut->changed_by( )
-                                        exp = mv_changed_by ).
+                                        exp = gv_changed_by ).
   ENDMETHOD.
 
 ENDCLASS.
@@ -113,12 +113,58 @@ CLASS ltc_smoke_test DEFINITION FINAL FOR TESTING
     DATA mo_cut TYPE REF TO zif_abapgit_object.
 
     METHODS run_trivial_methods FOR TESTING RAISING cx_static_check.
-    METHODS serialize FOR TESTING RAISING cx_static_check.
     METHODS deserialize FOR TESTING RAISING cx_static_check.
     METHODS delete FOR TESTING RAISING cx_static_check.
 
 ENDCLASS.
 
+CLASS ltc_serialization DEFINITION FINAL FOR TESTING
+  DURATION SHORT
+  RISK LEVEL HARMLESS.
+
+  PRIVATE SECTION.
+
+    DATA mo_cut TYPE REF TO zif_abapgit_object.
+
+    METHODS setup.
+    METHODS serialize FOR TESTING RAISING cx_static_check.
+
+ENDCLASS.
+
+
+CLASS ltc_serialization IMPLEMENTATION.
+
+  METHOD setup.
+
+    DATA  ls_item   TYPE zif_abapgit_definitions=>ty_item.
+
+    IF zcl_abapgit_persist_settings=>get_instance( )->read( )->get_experimental_features( ) = abap_false.
+      RETURN.
+    ENDIF.
+
+    ls_item-obj_type = 'PDWS'.
+    ls_item-obj_name = '90000001'.
+
+    TRY.
+        CREATE OBJECT mo_cut TYPE zcl_abapgit_object_pdws
+          EXPORTING
+            is_item     = ls_item
+            iv_language = sy-langu.
+      CATCH zcx_abapgit_exception.
+        cl_abap_unit_assert=>fail( ).
+    ENDTRY.
+
+  ENDMETHOD.
+
+  METHOD serialize.
+    DATA li_xml TYPE REF TO zif_abapgit_xml_output.
+
+    CREATE OBJECT li_xml TYPE zcl_abapgit_xml_output.
+    mo_cut->serialize( li_xml ).
+
+  ENDMETHOD.
+
+ENDCLASS.
 
 CLASS ltc_smoke_test IMPLEMENTATION.
 
@@ -134,23 +180,430 @@ CLASS ltc_smoke_test IMPLEMENTATION.
         is_item     = ls_item
         iv_language = sy-langu.
 
-    mo_cut->get_comparator( ).
-    mo_cut->get_deserialize_steps( ).
-    mo_cut->get_metadata( ).
-    mo_cut->is_active( ).
-
-  ENDMETHOD.
-
-  METHOD serialize.
-    cl_abap_unit_assert=>fail( msg = 'Todo' level = if_aunit_constants=>tolerable ).
   ENDMETHOD.
 
   METHOD deserialize.
-    cl_abap_unit_assert=>fail( msg = 'Todo' level = if_aunit_constants=>tolerable ).
+    cl_abap_unit_assert=>fail( msg = 'Todo'
+                               level = if_aunit_constants=>tolerable ).
   ENDMETHOD.
 
   METHOD delete.
-    cl_abap_unit_assert=>fail( msg = 'Todo' level = if_aunit_constants=>tolerable ).
+    cl_abap_unit_assert=>fail( msg = 'Todo'
+                               level = if_aunit_constants=>tolerable ).
+  ENDMETHOD.
+
+ENDCLASS.
+
+
+CLASS lcl_text_lines DEFINITION.
+  PUBLIC SECTION.
+    METHODS add IMPORTING iv_str TYPE string.
+    METHODS get RETURNING VALUE(rv_result) TYPE string.
+  PRIVATE SECTION.
+    DATA mv_text TYPE string.
+ENDCLASS.
+
+CLASS lcl_text_lines IMPLEMENTATION.
+
+  METHOD add.
+    mv_text = mv_text && iv_str."  && cl_abap_char_utilities=>newline.
+  ENDMETHOD.
+
+  METHOD get.
+    rv_result = mv_text.
+  ENDMETHOD.
+
+ENDCLASS.
+
+
+CLASS ltd_workflow DEFINITION FINAL FOR TESTING
+  DURATION SHORT
+  RISK LEVEL HARMLESS.
+  PUBLIC SECTION.
+    CLASS-METHODS create IMPORTING iv_wf_id         TYPE sww_task
+                         RETURNING VALUE(ro_result) TYPE REF TO ltd_workflow.
+    METHODS get_xml RETURNING VALUE(rv_result) TYPE string.
+
+  PRIVATE SECTION.
+    DATA mo_cut TYPE REF TO lcl_workflow_definition.
+    DATA mv_wfid TYPE sww_task.
+
+    METHODS dummy FOR TESTING RAISING cx_static_check.
+
+ENDCLASS.
+
+
+CLASS ltd_workflow IMPLEMENTATION.
+
+  METHOD create.
+    CREATE OBJECT ro_result.
+    ro_result->mv_wfid = iv_wf_id.
+  ENDMETHOD.
+
+
+  METHOD get_xml.
+    DATA lv_ts TYPE tzonref-tstamps.
+    DATA lo_xml TYPE REF TO lcl_text_lines.
+
+    CREATE OBJECT lo_xml.
+
+    GET TIME STAMP FIELD lv_ts.
+
+    lo_xml->add( |<workflow_exchange xmlns="http://www.sap.com/bc/bmt/wfm/def" type="internal" release="752" version="1.0" xml:lang="EN">| ).
+    lo_xml->add( | <workflow id="{ mv_wfid }(0000)S">| ).
+    lo_xml->add( |  <task>| ).
+    lo_xml->add( |   <TASK>{ mv_wfid }</TASK>| ).
+    lo_xml->add( |   <SHORT>zTest01</SHORT>| ).
+    lo_xml->add( |  </task>| ).
+    lo_xml->add( |  <header>| ).
+    lo_xml->add( |   <WFD_ID>{ mv_wfid }</WFD_ID>| ).
+    lo_xml->add( |   <VERSION>0000</VERSION>| ).
+    lo_xml->add( |   <EXETYP>S</EXETYP>| ).
+    lo_xml->add( |   <OBJID>90000005</OBJID>| ).
+    lo_xml->add( |   <ACTIV>X</ACTIV>| ).
+    lo_xml->add( |   <LANGUAGE>E</LANGUAGE>| ).
+    lo_xml->add( |   <TASK>{ mv_wfid }</TASK>| ).
+    lo_xml->add( |   <CREATED_BY>DEVELOPER</CREATED_BY>| ).
+    lo_xml->add( |   <CREATED_ON>2021-05-07</CREATED_ON>| ).
+    lo_xml->add( |   <CREATED_AT>22:17:08</CREATED_AT>| ).
+    lo_xml->add( |   <CREATED_RL>752</CREATED_RL>| ).
+    lo_xml->add( |   <CHANGED_BY>DEVELOPER</CHANGED_BY>| ).
+    lo_xml->add( |   <CHANGED_ON>2021-05-07</CHANGED_ON>| ).
+    lo_xml->add( |   <CHANGED_AT>22:17:08</CHANGED_AT>| ).
+    lo_xml->add( |   <CHANGED_RL>752</CHANGED_RL>| ).
+    lo_xml->add( |   <ACTIVAT_BY>DEVELOPER</ACTIVAT_BY>| ).
+    lo_xml->add( |   <ACTIVAT_ON>2021-05-07</ACTIVAT_ON>| ).
+    lo_xml->add( |   <ACTIVAT_AT>22:17:08</ACTIVAT_AT>| ).
+    lo_xml->add( |   <ACTIVAT_RL>752</ACTIVAT_RL>| ).
+    lo_xml->add( |   <ORIG_VERS>0000</ORIG_VERS>| ).
+    lo_xml->add( |   <PRS_PROFIL>0002</PRS_PROFIL>| ).
+    lo_xml->add( |   <ORIG_UUID>AAwpFpwyHtur7zKST/cGOA==</ORIG_UUID>| ).
+    lo_xml->add( |  </header>| ).
+    lo_xml->add( |  <workflow_container>| ).
+    lo_xml->add( |   <CONTAINER>| ).
+    lo_xml->add( |    <PROPERTIES>| ).
+    lo_xml->add( |     <OWN_ID>| ).
+    lo_xml->add( |      <INSTID>{ mv_wfid }0000S</INSTID>| ).
+    lo_xml->add( |      <TYPEID>CL_SWF_CNT_WS_PERSISTENCE</TYPEID>| ).
+    lo_xml->add( |      <CATID>CL</CATID>| ).
+    lo_xml->add( |     </OWN_ID>| ).
+    lo_xml->add( |     <INCLUDES>| ).
+    lo_xml->add( |      <item>| ).
+    lo_xml->add( |       <NAME>_TASK_HRS_CONTAINER</NAME>| ).
+    lo_xml->add( |       <POR>| ).
+    lo_xml->add( |        <INSTID>{ mv_wfid }</INSTID>| ).
+    lo_xml->add( |        <TYPEID>CL_SWF_CNT_HRS_PERSISTENCE</TYPEID>| ).
+    lo_xml->add( |        <CATID>CL</CATID>| ).
+    lo_xml->add( |       </POR>| ).
+    lo_xml->add( |      </item>| ).
+    lo_xml->add( |     </INCLUDES>| ).
+    lo_xml->add( |     <PROPSTRING>23</PROPSTRING>| ).
+    lo_xml->add( |     <XMLVERSION>0002</XMLVERSION>| ).
+    lo_xml->add( |     <INTERNAL>X</INTERNAL>| ).
+    lo_xml->add( |    </PROPERTIES>| ).
+    lo_xml->add( |    <ELEMENTS>| ).
+    lo_xml->add( |     <A NAME="_ADHOC_OBJECTS:_Adhoc_Objects:" TYPE=":BO::h:0:0" PROPS="0C925A51" LTEXTS="EE014Ad Hoc ObjectsAd Hoc Objects of Workflow Instance" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <B NAME="_ATTACH_OBJECTS:_Attach_Objects:" TYPE="SOFM:BO::h:0:0" PROPS="0C925A51" LTEXTS="EE011AttachmentsAttachments of Workflow Instance" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <C NAME="_WF_INITIATOR:_Wf_Initiator:" TYPE="::WFSYST-INITIATOR:C:0:0" PROPS="0C003211" LTEXTS="EE018Workflow InitiatorInitiator of Workflow Instance" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <D NAME="_WF_PRIORITY:_Wf_Priority:" TYPE="::SWFCN_TYPE_PRIORITY:N:0:0" PROPS="0C001A1" LTEXTS="EE008PriorityPriority of Workflow Instance" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:">5</D>| ).
+    lo_xml->add( |     <E NAME="_WI_GROUP_ID:_Wi_Group_ID:" TYPE=":BO::u:0:0" PROPS="0C921A11" LTEXTS="EE017Grouping Charact.Grouping Characteristic for Workflow Instances" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <F NAME="_WORKITEM:_Workitem:" TYPE="FLOWITEM:BO::u:0:0" PROPS="0C921A11" LTEXTS="EE008WorkflowWorkflow Instance" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <G NAME="_WF_VERSION:_Wf_Version:" TYPE="::SWD_VERSIO:C:0:0" PROPS="0C000A11" LTEXTS="EE016Workflow VersionDefinition Version of this Workflow Instance" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <H NAME="_WF_NESTING_LEVEL:_WF_Nesting_Level:" TYPE="::SYINDEX:I:0:0" PROPS="0C001A31" LTEXTS="EE013Nesting DepthCurrent Subworkflow Nesting Depth" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <I NAME="_PREDECESSOR_WI:_Predecessor_Wi:" TYPE="WORKITEM:BO::u:0:0" PROPS="0C920011" LTEXTS="EE011PredecessorPrevious Work Item" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <J NAME="_RFC_DESTINATION:_Rfc_Destination:" TYPE="::RFCDEST:C:0:0" PROPS="0C001231" LTEXTS="EE015RFC DestinationRFC Destination" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <K NAME="_ATTACH_COMMENT_OBJECTS:_Attach_Comment_Objects:" TYPE="SOFM:BO::h:0:0" PROPS="0C925A71" LTEXTS="EE007CommentComment" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <L NAME="_START_EVENT_IDENTIFIER:_Start_Event_Identifier:" TYPE="CL_SWF_UTL_EVT_IDENTIFIER:CL::h:0:0" PROPS="0CC20231" LTEXTS="EE017ID of Start EventID of Start Event" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add(
+|     <M NAME="_WF_TYPENAME_MAPPING:_WF_Typename_Mapping:" TYPE="::SWF_CNT_MAPPING_TAB:h:0:0" PROPS="0C120271" LTEXTS="EE022Relation of Type NamesRelation of Type Names (Original and Copy)" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <N NAME="_WF_START_QUERY:_WF_Start_Query:" TYPE="::SWF_STRING:g:0:0" PROPS="0C001231" LTEXTS="EE011Start QueryWorkflow Start Query in URL Syntax" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |     <O NAME="_WF_LAST_CALLBACK_WI:_WF_Last_Callback_Wi:" TYPE="WORKITEM:BO::u:0:0" PROPS="0C920031" LTEXTS="EE018Callback Work ItemCallback Work Item" CHGDTA="752:{ lv_ts }:DEVELOPER::00000000000000:"/>| ).
+    lo_xml->add( |    </ELEMENTS>| ).
+    lo_xml->add( |   </CONTAINER>| ).
+    lo_xml->add( |  </workflow_container>| ).
+    lo_xml->add( |  <texts>| ).
+    lo_xml->add( |   <item>| ).
+    lo_xml->add( |    <WFD_ID>{ mv_wfid }</WFD_ID>| ).
+    lo_xml->add( |    <VERSION>0000</VERSION>| ).
+    lo_xml->add( |    <EXETYP>S</EXETYP>| ).
+    lo_xml->add( |    <LANGUAGE>E</LANGUAGE>| ).
+    lo_xml->add( |    <NODEID>0000999998</NODEID>| ).
+    lo_xml->add( |    <TEXTTYP>ND</TEXTTYP>| ).
+    lo_xml->add( |   </item>| ).
+    lo_xml->add( |  </texts>| ).
+    lo_xml->add( |  <steps>| ).
+    lo_xml->add( |   <item>| ).
+    lo_xml->add( |    <WFD_ID>{ mv_wfid }</WFD_ID>| ).
+    lo_xml->add( |    <VERSION>0000</VERSION>| ).
+    lo_xml->add( |    <EXETYP>S</EXETYP>| ).
+    lo_xml->add( |    <NODEID>0000000001</NODEID>| ).
+    lo_xml->add( |    <DESCRIPT>XOR</DESCRIPT>| ).
+    lo_xml->add( |    <NODETYPE>STRT</NODETYPE>| ).
+    lo_xml->add( |    <MODELEMENT>O</MODELEMENT>| ).
+    lo_xml->add( |    <EXP_TOKENS>001</EXP_TOKENS>| ).
+    lo_xml->add( |    <BLOCKID>0000000001</BLOCKID>| ).
+    lo_xml->add( |    <NEST_LEVEL>01</NEST_LEVEL>| ).
+    lo_xml->add( |    <START_NODE>X</START_NODE>| ).
+    lo_xml->add( |    <XOR_FLAG>X</XOR_FLAG>| ).
+    lo_xml->add( |    <CREATED_BY>DEVELOPER</CREATED_BY>| ).
+    lo_xml->add( |    <CREATED_ON>2021-05-07</CREATED_ON>| ).
+    lo_xml->add( |    <CREATED_AT>22:17:03</CREATED_AT>| ).
+    lo_xml->add( |    <CREATED_RL>752</CREATED_RL>| ).
+    lo_xml->add( |    <CHANGED_BY>DEVELOPER</CHANGED_BY>| ).
+    lo_xml->add( |    <CHANGED_ON>{ sy-datum DATE = ISO }</CHANGED_ON>| ).
+    lo_xml->add( |    <CHANGED_AT>{ sy-uzeit TIME = ISO }</CHANGED_AT>| ).
+    lo_xml->add( |    <CHANGED_RL>752</CHANGED_RL>| ).
+    lo_xml->add( |   </item>| ).
+    lo_xml->add( |   <item>| ).
+    lo_xml->add( |    <WFD_ID>{ mv_wfid }</WFD_ID>| ).
+    lo_xml->add( |    <VERSION>0000</VERSION>| ).
+    lo_xml->add( |    <EXETYP>S</EXETYP>| ).
+    lo_xml->add( |    <NODEID>0000000002</NODEID>| ).
+    lo_xml->add( |    <DESCRIPT>Undefined</DESCRIPT>| ).
+    lo_xml->add( |    <NODETYPE>VOID</NODETYPE>| ).
+    lo_xml->add( |    <MODELEMENT>S</MODELEMENT>| ).
+    lo_xml->add( |    <BLOCKID>0000000002</BLOCKID>| ).
+    lo_xml->add( |    <PAR_BLCKID>0000000001</PAR_BLCKID>| ).
+    lo_xml->add( |    <NEST_LEVEL>02</NEST_LEVEL>| ).
+    lo_xml->add( |    <START_NODE>X</START_NODE>| ).
+    lo_xml->add( |    <DES_SZ_EXP>%ZONLO%</DES_SZ_EXP>| ).
+    lo_xml->add( |    <LAT_SZ_EXP>%ZONLO%</LAT_SZ_EXP>| ).
+    lo_xml->add( |    <DES_EZ_EXP>%ZONLO%</DES_EZ_EXP>| ).
+    lo_xml->add( |    <LAT_EZ_EXP>%ZONLO%</LAT_EZ_EXP>| ).
+    lo_xml->add( |    <CREATED_BY>DEVELOPER</CREATED_BY>| ).
+    lo_xml->add( |    <CREATED_ON>2021-05-07</CREATED_ON>| ).
+    lo_xml->add( |    <CREATED_AT>22:17:03</CREATED_AT>| ).
+    lo_xml->add( |    <CREATED_RL>752</CREATED_RL>| ).
+    lo_xml->add( |   </item>| ).
+    lo_xml->add( |   <item>| ).
+    lo_xml->add( |    <WFD_ID>{ mv_wfid }</WFD_ID>| ).
+    lo_xml->add( |    <VERSION>0000</VERSION>| ).
+    lo_xml->add( |    <EXETYP>S</EXETYP>| ).
+    lo_xml->add( |    <NODEID>0000000003</NODEID>| ).
+    lo_xml->add( |    <DESCRIPT>Undefined</DESCRIPT>| ).
+    lo_xml->add( |    <NODETYPE>EVOI</NODETYPE>| ).
+    lo_xml->add( |    <MODELEMENT>E</MODELEMENT>| ).
+    lo_xml->add( |    <BLOCKID>0000000002</BLOCKID>| ).
+    lo_xml->add( |    <PAR_BLCKID>0000000001</PAR_BLCKID>| ).
+    lo_xml->add( |    <NEST_LEVEL>02</NEST_LEVEL>| ).
+    lo_xml->add( |    <END_NODE>X</END_NODE>| ).
+    lo_xml->add( |    <CREATED_BY>DEVELOPER</CREATED_BY>| ).
+    lo_xml->add( |    <CREATED_ON>2021-05-07</CREATED_ON>| ).
+    lo_xml->add( |    <CREATED_AT>22:17:03</CREATED_AT>| ).
+    lo_xml->add( |    <CREATED_RL>752</CREATED_RL>| ).
+    lo_xml->add( |   </item>| ).
+    lo_xml->add( |   <item>| ).
+    lo_xml->add( |    <WFD_ID>{ mv_wfid }</WFD_ID>| ).
+    lo_xml->add( |    <VERSION>0000</VERSION>| ).
+    lo_xml->add( |    <EXETYP>S</EXETYP>| ).
+    lo_xml->add( |    <NODEID>0000999502</NODEID>| ).
+    lo_xml->add( |    <DESCRIPT>Complete Workflow</DESCRIPT>| ).
+    lo_xml->add( |    <NODETYPE>EFUN</NODETYPE>| ).
+    lo_xml->add( |    <MODELEMENT>S</MODELEMENT>| ).
+    lo_xml->add( |    <BLOCKID>0000000001</BLOCKID>| ).
+    lo_xml->add( |    <NEST_LEVEL>01</NEST_LEVEL>| ).
+    lo_xml->add( |    <START_NODE>X</START_NODE>| ).
+    lo_xml->add( |    <DES_SZ_EXP>%ZONLO%</DES_SZ_EXP>| ).
+    lo_xml->add( |    <LAT_SZ_EXP>%ZONLO%</LAT_SZ_EXP>| ).
+    lo_xml->add( |    <DES_EZ_EXP>%ZONLO%</DES_EZ_EXP>| ).
+    lo_xml->add( |    <LAT_EZ_EXP>%ZONLO%</LAT_EZ_EXP>| ).
+    lo_xml->add( |    <CREATED_BY>DEVELOPER</CREATED_BY>| ).
+    lo_xml->add( |    <CREATED_ON>2021-05-07</CREATED_ON>| ).
+    lo_xml->add( |    <CREATED_AT>22:17:03</CREATED_AT>| ).
+    lo_xml->add( |    <CREATED_RL>752</CREATED_RL>| ).
+    lo_xml->add( |   </item>| ).
+    lo_xml->add( |   <item>| ).
+    lo_xml->add( |    <WFD_ID>{ mv_wfid }</WFD_ID>| ).
+    lo_xml->add( |    <VERSION>0000</VERSION>| ).
+    lo_xml->add( |    <EXETYP>S</EXETYP>| ).
+    lo_xml->add( |    <NODEID>0000999503</NODEID>| ).
+    lo_xml->add( |    <DESCRIPT>Workflow completed</DESCRIPT>| ).
+    lo_xml->add( |    <NODETYPE>EVTG</NODETYPE>| ).
+    lo_xml->add( |    <MODELEMENT>E</MODELEMENT>| ).
+    lo_xml->add( |    <BLOCKID>0000000001</BLOCKID>| ).
+    lo_xml->add( |    <NEST_LEVEL>01</NEST_LEVEL>| ).
+    lo_xml->add( |    <CREATED_BY>DEVELOPER</CREATED_BY>| ).
+    lo_xml->add( |    <CREATED_ON>2021-05-07</CREATED_ON>| ).
+    lo_xml->add( |    <CREATED_AT>22:17:03</CREATED_AT>| ).
+    lo_xml->add( |    <CREATED_RL>752</CREATED_RL>| ).
+    lo_xml->add( |   </item>| ).
+    lo_xml->add( |   <item>| ).
+    lo_xml->add( |    <WFD_ID>{ mv_wfid }</WFD_ID>| ).
+    lo_xml->add( |    <VERSION>0000</VERSION>| ).
+    lo_xml->add( |    <EXETYP>S</EXETYP>| ).
+    lo_xml->add( |    <NODEID>0000999998</NODEID>| ).
+    lo_xml->add( |    <NODETYPE>OFF</NODETYPE>| ).
+    lo_xml->add( |    <MODELEMENT>O</MODELEMENT>| ).
+    lo_xml->add( |    <BLOCKID>0000000001</BLOCKID>| ).
+    lo_xml->add( |    <XOR_FLAG>X</XOR_FLAG>| ).
+    lo_xml->add( |    <CREATED_BY>DEVELOPER</CREATED_BY>| ).
+    lo_xml->add( |    <CREATED_ON>2021-05-07</CREATED_ON>| ).
+    lo_xml->add( |    <CREATED_AT>22:17:03</CREATED_AT>| ).
+    lo_xml->add( |    <CREATED_RL>752</CREATED_RL>| ).
+    lo_xml->add( |   </item>| ).
+    lo_xml->add( |   <item>| ).
+    lo_xml->add( |    <WFD_ID>{ mv_wfid }</WFD_ID>| ).
+    lo_xml->add( |    <VERSION>0000</VERSION>| ).
+    lo_xml->add( |    <EXETYP>S</EXETYP>| ).
+    lo_xml->add( |    <NODEID>0000999999</NODEID>| ).
+    lo_xml->add( |    <DESCRIPT>XOR</DESCRIPT>| ).
+    lo_xml->add( |    <NODETYPE>END</NODETYPE>| ).
+    lo_xml->add( |    <MODELEMENT>O</MODELEMENT>| ).
+    lo_xml->add( |    <FORK_TOKEN>001</FORK_TOKEN>| ).
+    lo_xml->add( |    <BLOCKID>0000000001</BLOCKID>| ).
+    lo_xml->add( |    <NEST_LEVEL>01</NEST_LEVEL>| ).
+    lo_xml->add( |    <END_NODE>X</END_NODE>| ).
+    lo_xml->add( |    <XOR_FLAG>X</XOR_FLAG>| ).
+    lo_xml->add( |    <CREATED_BY>DEVELOPER</CREATED_BY>| ).
+    lo_xml->add( |    <CREATED_ON>2021-05-07</CREATED_ON>| ).
+    lo_xml->add( |    <CREATED_AT>22:17:03</CREATED_AT>| ).
+    lo_xml->add( |    <CREATED_RL>752</CREATED_RL>| ).
+    lo_xml->add( |    <CHANGED_BY>DEVELOPER</CHANGED_BY>| ).
+    lo_xml->add( |    <CHANGED_ON>2021-05-07</CHANGED_ON>| ).
+    lo_xml->add( |    <CHANGED_AT>22:17:03</CHANGED_AT>| ).
+    lo_xml->add( |    <CHANGED_RL>752</CHANGED_RL>| ).
+    lo_xml->add( |   </item>| ).
+    lo_xml->add( |   <item>| ).
+    lo_xml->add( |    <NODEID>0000999504</NODEID>| ).
+    lo_xml->add( |    <DESCRIPT>Workflow started</DESCRIPT>| ).
+    lo_xml->add( |    <NODETYPE>SGVT</NODETYPE>| ).
+    lo_xml->add( |    <MODELEMENT>E</MODELEMENT>| ).
+    lo_xml->add( |    <BLOCKID>0000000001</BLOCKID>| ).
+    lo_xml->add( |    <NEST_LEVEL>01</NEST_LEVEL>| ).
+    lo_xml->add( |    <CREATED_BY>DEVELOPER</CREATED_BY>| ).
+    lo_xml->add( |    <CREATED_ON>{ sy-datum DATE = ISO }</CREATED_ON>| ).
+    lo_xml->add( |    <CREATED_AT>{ sy-uzeit TIME = ISO }</CREATED_AT>| ).
+    lo_xml->add( |    <CREATED_RL>752</CREATED_RL>| ).
+    lo_xml->add( |   </item>| ).
+    lo_xml->add( |  </steps>| ).
+    lo_xml->add( |  <lines>| ).
+    lo_xml->add( |   <item>| ).
+    lo_xml->add( |    <LINEID>0000000002</LINEID>| ).
+    lo_xml->add( |    <PRED_NODE>0000000001</PRED_NODE>| ).
+    lo_xml->add( |    <SUCC_NODE>0000000002</SUCC_NODE>| ).
+    lo_xml->add( |   </item>| ).
+    lo_xml->add( |   <item>| ).
+    lo_xml->add( |    <LINEID>0000000003</LINEID>| ).
+    lo_xml->add( |    <PRED_NODE>0000000002</PRED_NODE>| ).
+    lo_xml->add( |    <SUCC_NODE>0000000003</SUCC_NODE>| ).
+    lo_xml->add( |   </item>| ).
+    lo_xml->add( |   <item>| ).
+    lo_xml->add( |    <LINEID>0000000004</LINEID>| ).
+    lo_xml->add( |    <PRED_NODE>0000000003</PRED_NODE>| ).
+    lo_xml->add( |    <SUCC_NODE>0000999999</SUCC_NODE>| ).
+    lo_xml->add( |   </item>| ).
+    lo_xml->add( |   <item>| ).
+    lo_xml->add( |    <LINEID>0000000005</LINEID>| ).
+    lo_xml->add( |    <PRED_NODE>0000999502</PRED_NODE>| ).
+    lo_xml->add( |    <SUCC_NODE>0000999503</SUCC_NODE>| ).
+    lo_xml->add( |   </item>| ).
+    lo_xml->add( |   <item>| ).
+    lo_xml->add( |    <LINEID>0000000006</LINEID>| ).
+    lo_xml->add( |    <PRED_NODE>0000999999</PRED_NODE>| ).
+    lo_xml->add( |    <SUCC_NODE>0000999502</SUCC_NODE>| ).
+    lo_xml->add( |   </item>| ).
+    lo_xml->add( |   <item>| ).
+    lo_xml->add( |    <LINEID>0000999501</LINEID>| ).
+    lo_xml->add( |    <PRED_NODE>0000999504</PRED_NODE>| ).
+    lo_xml->add( |    <SUCC_NODE>0000000001</SUCC_NODE>| ).
+    lo_xml->add( |   </item>| ).
+    lo_xml->add( |  </lines>| ).
+    lo_xml->add( | </workflow>| ).
+    lo_xml->add( |</workflow_exchange>| ).
+
+    rv_result = lo_xml->get( ).
+
+  ENDMETHOD.
+
+  METHOD dummy.
+  ENDMETHOD.
+
+ENDCLASS.
+
+CLASS ltc_test DEFINITION FINAL FOR TESTING
+  DURATION SHORT
+  RISK LEVEL HARMLESS.
+
+  PRIVATE SECTION.
+
+    CONSTANTS c_test_wf TYPE sww_task VALUE 'WS90000005'.
+
+    DATA mo_cut TYPE REF TO lcl_workflow_definition.
+
+    METHODS setup.
+    METHODS format_xml IMPORTING iv_xml        TYPE string
+                       RETURNING VALUE(rv_exp) TYPE string
+                       RAISING   zcx_abapgit_exception.
+
+    METHODS invalid_id_doesnt_load FOR TESTING RAISING cx_static_check.
+    METHODS serialize FOR TESTING RAISING cx_static_check.
+
+ENDCLASS.
+
+
+CLASS ltc_test IMPLEMENTATION.
+
+  METHOD setup.
+    TRY.
+        mo_cut = lcl_workflow_definition=>load( c_test_wf ).
+      CATCH zcx_abapgit_exception.
+        cl_abap_unit_assert=>fail( level = if_aunit_constants=>fatal ).
+    ENDTRY.
+  ENDMETHOD.
+
+
+  METHOD invalid_id_doesnt_load.
+
+    DATA lo_cut TYPE REF TO lcl_workflow_definition.
+
+    TRY.
+        lo_cut = lcl_workflow_definition=>load( 'WS99999990' ).
+        cl_abap_unit_assert=>fail( 'Exception not raised' ).
+      CATCH zcx_abapgit_exception.
+        "As expected
+    ENDTRY.
+
+  ENDMETHOD.
+
+
+  METHOD serialize.
+
+    DATA: lo_mock TYPE REF TO ltd_workflow,
+          lv_xml  TYPE string,
+          lv_exp  TYPE string.
+
+    lo_mock = ltd_workflow=>create( c_test_wf ).
+
+    lv_exp = lo_mock->get_xml( ).
+    lv_exp = format_xml( lv_exp ).
+
+    lv_xml = mo_cut->serialize( ).
+    lv_xml = format_xml( lv_xml ).
+
+    IF lv_xml <> lv_exp.
+      "Once more in case timestamp rolled over to the next second
+      lv_exp = lo_mock->get_xml( ).
+      lv_exp = format_xml( lv_exp ).
+    ENDIF.
+
+    cl_abap_unit_assert=>assert_equals( act = lv_xml
+                                        exp = lv_exp ).
+
+  ENDMETHOD.
+
+
+  METHOD format_xml.
+
+    rv_exp = zcl_abapgit_xml_pretty=>print(
+               iv_xml           = iv_xml
+               iv_ignore_errors = abap_false
+               iv_unpretty      = abap_false ).
+
+    REPLACE FIRST OCCURRENCE
+      OF REGEX '<\?xml version="1\.0" encoding="[\w-]+"\?>'
+      IN rv_exp
+      WITH '<?xml version="1.0" encoding="utf-8"?>'.
+
   ENDMETHOD.
 
 ENDCLASS.
