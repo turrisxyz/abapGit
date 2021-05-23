@@ -44,11 +44,18 @@ CLASS zcl_abapgit_http DEFINITION
       RAISING
         zcx_abapgit_exception .
   PRIVATE SECTION.
+    CLASS-METHODS get_client_via_exit
+      IMPORTING
+        iv_url           TYPE string
+      RETURNING
+        VALUE(ri_client) TYPE REF TO if_http_client
+      RAISING
+        zcx_abapgit_exception.
 ENDCLASS.
 
 
 
-CLASS ZCL_ABAPGIT_HTTP IMPLEMENTATION.
+CLASS zcl_abapgit_http IMPLEMENTATION.
 
 
   METHOD acquire_login_details.
@@ -126,7 +133,7 @@ CLASS ZCL_ABAPGIT_HTTP IMPLEMENTATION.
 
     CREATE OBJECT lo_proxy_configuration.
 
-    li_client = zcl_abapgit_exit=>get_instance( )->create_http_client( iv_url ).
+    li_client = get_client_via_exit( iv_url ).
 
     IF li_client IS NOT BOUND.
 
@@ -255,4 +262,26 @@ CLASS ZCL_ABAPGIT_HTTP IMPLEMENTATION.
     rv_bool = boolc( sy-subrc = 0 ).
 
   ENDMETHOD.
+
+  METHOD get_client_via_exit.
+
+    DATA lo_exit TYPE REF TO object.
+
+    TRY.
+        lo_exit = zcl_abapgit_exit_factory=>get_instance( )->get_implementation_of( 'ZIF_ABAPGIT_EXIT_CRT_HTTP_CLNT' ).
+      CATCH cx_sy_create_object_error cx_sy_ref_is_initial cx_sy_dyn_call_illegal_method ##no_handler.
+    ENDTRY.
+
+    IF lo_exit IS BOUND.
+      CALL METHOD lo_exit->('ZIF_ABAPGIT_EXIT_CRT_HTTP_CLNT~CREATE_HTTP_CLIENT')
+        EXPORTING
+          iv_url    = iv_url
+        RECEIVING
+          ri_client = ri_client.
+    ELSE.
+      ri_client = zcl_abapgit_exit=>get_instance( )->create_http_client( iv_url ).
+    ENDIF.
+
+  ENDMETHOD.
+
 ENDCLASS.

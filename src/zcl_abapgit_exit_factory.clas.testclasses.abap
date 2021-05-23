@@ -23,7 +23,7 @@ ENDCLASS.
 CLASS ltc_test IMPLEMENTATION.
 
   METHOD setup.
-    mo_cut = NEW zcl_abapgit_exit_factory( ).
+    mo_cut = zcl_abapgit_exit_factory=>get_instance( ).
   ENDMETHOD.
 
 
@@ -41,7 +41,7 @@ CLASS ltc_test IMPLEMENTATION.
 
     lo_exit = mo_cut->get_implementation_of( 'ZIF_ABAPGIT_LOG' ).
     cl_abap_unit_assert=>assert_bound( lo_exit ).
-    IF NOT lo_exit IS INSTANCE OF zcl_abapgit_log.
+    IF NOT lo_exit IS INSTANCE OF zif_abapgit_log.
       cl_abap_unit_assert=>fail( ).
     ENDIF.
 
