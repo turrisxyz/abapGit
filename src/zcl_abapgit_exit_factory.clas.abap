@@ -22,10 +22,10 @@ CLASS zcl_abapgit_exit_factory IMPLEMENTATION.
 
   METHOD get_implementation_of.
 
-    DATA: ls_implementers TYPE seo_relkeys,
+    DATA: lt_implementers TYPE seo_relkeys,
           lo_intf         TYPE REF TO cl_oo_interface,
           lv_classname    TYPE seorelkey-refclsname,
-          lv_class_count  TYPE i.
+          ls_implementer TYPE seorelkey.
 
     TRY.
         CREATE OBJECT lo_intf
@@ -36,18 +36,16 @@ CLASS zcl_abapgit_exit_factory IMPLEMENTATION.
 
     IF lo_intf IS BOUND.
 
-      ls_implementers = lo_intf->get_implementing_classes( ).
+      lt_implementers = lo_intf->get_implementing_classes( ).
 
-      DESCRIBE TABLE ls_implementers LINES lv_class_count.
-
-      CASE lv_class_count.
+      CASE lines( lt_implementers ).
 
         WHEN 0.
           RETURN.
 
         WHEN 1.
-          lv_classname = ls_implementers[ 1 ]-clsname.
-          ro_result = create_instance( lv_classname ).
+          READ TABLE lt_implementers INDEX 1 INTO ls_implementer.
+          ro_result = create_instance( ls_implementer-clsname ).
 
         WHEN OTHERS.
           "Todo / feature: multi-instance exits in separate method
