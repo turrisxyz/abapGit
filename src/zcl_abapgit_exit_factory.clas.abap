@@ -24,23 +24,36 @@ CLASS zcl_abapgit_exit_factory IMPLEMENTATION.
 
     DATA: ls_implementers TYPE seo_relkeys,
           lo_intf         TYPE REF TO cl_oo_interface,
-          lv_classname    TYPE seorelkey-refclsname.
+          lv_classname    TYPE seorelkey-refclsname,
+          lv_class_count  TYPE i.
 
     TRY.
-        lo_intf = NEW cl_oo_interface( iv_exit_name ).
+        CREATE OBJECT lo_intf
+          EXPORTING
+            intfname = iv_exit_name.
       CATCH cx_class_not_existent ##no_handler.
     ENDTRY.
 
     IF lo_intf IS BOUND.
 
       ls_implementers = lo_intf->get_implementing_classes( ).
-      "Todo: multi-instance exits as separate method
-      IF lines( ls_implementers ) > 1.
-        zcx_abapgit_exception=>raise( |Exit { iv_exit_name } may only be implemented once (todo)| ).
-      ENDIF.
 
-      ro_result = create_instance( iv_classname = ls_implementers[ 1 ]-clsname ).
+      DESCRIBE TABLE ls_implementers LINES lv_class_count.
 
+      CASE lv_class_count.
+
+        WHEN 0.
+          RETURN.
+
+        WHEN 1.
+          lv_classname = ls_implementers[ 1 ]-clsname.
+          ro_result = create_instance( lv_classname ).
+
+        WHEN OTHERS.
+          "Todo / feature: multi-instance exits in separate method
+          zcx_abapgit_exception=>raise( |Exit { iv_exit_name } may only be implemented once| ).
+
+      ENDCASE.
     ENDIF.
 
   ENDMETHOD.
@@ -57,6 +70,7 @@ CLASS zcl_abapgit_exit_factory IMPLEMENTATION.
 
     TRY.
         CREATE OBJECT ro_result TYPE (iv_classname).
+
       CATCH cx_sy_create_object_error INTO lo_error.
         zcx_abapgit_exception=>raise( iv_text = lo_error->get_text( )
                                       ix_previous = lo_error ).

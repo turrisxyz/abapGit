@@ -41,9 +41,8 @@ CLASS ltc_test IMPLEMENTATION.
 
     lo_exit = mo_cut->get_implementation_of( 'ZIF_ABAPGIT_LOG' ).
     cl_abap_unit_assert=>assert_bound( lo_exit ).
-    IF NOT lo_exit IS INSTANCE OF zif_abapgit_log.
-      cl_abap_unit_assert=>fail( ).
-    ENDIF.
+
+    "Can't check IS INSTANCE OF on 7.02
 
   ENDMETHOD.
 
